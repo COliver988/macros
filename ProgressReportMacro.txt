@@ -1,0 +1,105 @@
+Sub ProgressReport()
+
+For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
+
+  Cell.Select
+  With ActiveCell
+   
+   contents = .Value2
+   
+   If InStr(1, contents, "<purple>") > 0 Then
+      .Replace "<purple>", ""
+      .Interior.Color = RGB(205, 114, 247)
+    End If
+   
+    If InStr(1, contents, "<bold>") > 0 Then
+          .Font.Bold = True
+          .Replace "<bold>", ""
+     End If
+    
+    If InStr(1, contents, "<width") > 0 Then
+       pos = InStr(contents, "=")
+       w = Mid(contents, pos + 1, 3)
+       'Debug.Print "Setting the width"
+       'Debug.Print w
+       Columns(.Column).ColumnWidth = w
+       .Replace "<width=" + w + ">", ""
+    End If
+    
+    If InStr(1, contents, "<height") > 0 Then
+       pos = InStr(contents, "=")
+       pos2 = InStr(contents, ">")
+       l = pos2 - pos - 1
+       w = Mid(contents, pos + 1, l)
+       Debug.Print w
+       Rows(.Row).RowHeight = w
+       .Replace "<height=" + w + ">", ""
+    End If
+  
+    
+  End With
+  
+Next Cell
+
+With ActiveSheet
+    .UsedRange.Cells.Replace "<vmerge>", ""
+    .UsedRange.Cells.Replace "<hmerge>", ""
+    .UsedRange.Cells.Replace "<strikethrough>", ""
+    .UsedRange.Cells.Replace "<hide>", ""
+    .UsedRange.Cells.Replace "<freeze>", ""
+    .UsedRange.Cells.Replace "<freezepoint>", ""
+    .UsedRange.Cells.Replace "^", Chr(13)
+    .UsedRange.Cells.Replace "|", Chr(13)
+    .UsedRange.Cells.Borders.LineStyle = xlContinuous
+    .UsedRange.Cells.Font.Size = 14
+    .UsedRange.Cells.Borders.Weight = xlThin
+    .UsedRange.Cells.HorizontalAlignment = xlCenter
+    .UsedRange.Cells.VerticalAlignment = xlCenter
+    '.UsedRange.Cells.Font.Bold = True
+    .UsedRange.Cells.WrapText = True
+End With
+
+Dim P As Shape
+
+sPath = MacScript("(path to desktop folder as string)")
+sPath = Replace(sPath, ":", "/")
+pos = InStr(sPath, "/")
+sPath = Mid(sPath, pos, Len(sPath))
+  
+For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Columns(6).Cells
+    On Error GoTo badFile:
+    If Not IsEmpty(Cell.Value2) And Cell.Row > 1 Then
+      Debug.Print "->" & Cell.Value2 & "<-"
+      myPath = sPath + "EIA Images/" + Cell.Text + ".png"
+      Cell.Select
+      Cell.Font.Color = vbWhite
+      w = Cell.Width
+      h = Cell.Height
+      ActiveSheet.Pictures.Insert(myPath).Select
+      With Selection
+        .Left = Cell.Left + 2
+        .Top = Cell.Top + 2
+        aspect = .Width / .Height
+        If (w / h < aspect) Then
+           .Width = w - 2
+        Else
+          .Height = h - 2
+        End If
+      End With
+    End If   ' non-empty row
+    GoTo nextCell
+badFile:
+    If Err.Number <> saveError Then
+       MsgBox "Image error: " & Err.Number
+       saveError = Err.Number
+       errorCount = errorCount + 1
+    End If
+    Resume nextCell
+
+nextCell:
+  Next Cell
+
+ActiveSheet.Cells(1, 1).Select
+
+
+End Sub

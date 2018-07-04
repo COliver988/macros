@@ -1,0 +1,247 @@
+' process the tags for a PO status report
+' version 1.0 - 06/06/2018 cgo
+
+Sub POStatus()
+
+sheetCnt = 1
+
+Application.DisplayAlerts = False
+Application.ScreenUpdating = False
+totalCells = ActiveWorkbook.ActiveSheet.UsedRange.Cells.Count
+rowsUsed = ActiveSheet.UsedRange.Rows.Count
+Application.StatusBar = rowsUsed & " row to process; creating the sheets"
+
+For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Columns(1).Cells
+
+    If InStr(1, Cell, "<sheet") > 0 Then
+      sheetNumber = CInt(Mid(Cell, 7, Len(Cell) - 7))
+      If sheetNumber > sheetCnt Then
+        Sheets.Add After:=Sheets(Sheets.Count)
+        sheetCnt = sheetCnt + 1
+        Application.ScreenUpdating = True
+        Application.StatusBar = "new sheet created..."
+        Application.ScreenUpdating = False
+      End If
+      If sheetNumber > 1 Then
+          Sheets(1).Rows(Cell.Row).Copy Destination:=Sheets(sheetCnt).Cells(Rows.Count, 1).End(xlUp).Offset(1, 0)
+      End If
+     
+    End If
+     
+Next Cell
+
+ActiveWorkbook.Sheets(1).Select
+Application.StatusBar = "Cleaning up sheet 1 - remove other sheet data"
+myCount = 0
+For RowToTest = Cells(Rows.Count, 1).End(xlUp).Row To 2 Step -1
+    myCount = myCount + 1
+     If myCount Mod 250 = 0 Then
+       Application.ScreenUpdating = True
+       Percent = myCount / rowsUsed * 100
+       Application.StatusBar = "Rows processed..." & myCount & " rows processed [" & Percent & "%] "
+       DoEvents
+       Application.ScreenUpdating = False
+     End If
+
+   With Cells(RowToTest, 1)
+   
+   If .Value <> "<sheet1>" Then
+      Rows(RowToTest).EntireRow.Delete
+    End If
+  End With
+
+Next RowToTest
+
+myCount = 0
+
+For CurrentSheet = 1 To sheetCnt
+  ActiveWorkbook.Sheets(CurrentSheet).Select
+
+For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
+
+  Cell.Select
+  With ActiveCell
+   
+     contents = .Value2
+     
+     If contents = "<sheetname>" Then
+        ActiveWorkbook.Sheets(CurrentSheet).Name = Cells(.Row, 3).Value
+    End If
+
+    myCount = myCount + 1
+     If myCount Mod 250 = 0 Then
+       Application.ScreenUpdating = True
+       Percent = myCount / totalCells * 100
+       Application.StatusBar = "processing cells for formatting..." & myCount & " cells processed [" & Percent & "%] - " & ActiveWorkbook.Sheets(CurrentSheet).Name
+       DoEvents
+       Application.ScreenUpdating = False
+     End If
+   
+  ' vertical merge check
+    If InStr(1, contents, "<vmerge>") > 0 Then
+      rowPos = .Row
+      colPos = .Column
+      i = rowPos + 1
+      Do While Cells(i, colPos) = contents
+        i = i + 1
+      Loop
+      If i > rowPos + 1 Then
+        Range(Cells(rowPos, colPos), Cells(i - 1, colPos)).Merge
+      End If
+      .Replace "<vmerge>", ""
+    End If
+
+  ' horizontal merge check
+    If InStr(1, contents, "<hmerge>") > 0 Then
+      rowPos = .Row
+      colPos = .Column
+      .VerticalAlignment = xlCenter
+      i = colPos + 1
+      Do While Cells(rowPos, i) = contents
+        i = i + 1
+      Loop
+      If i > colPos + 1 Then
+        Range(Cells(rowPos, colPos), Cells(rowPos, i - 1)).Merge
+      End If
+    End If
+
+      'vertical and horizontal merge
+      If InStr(1, contents, "<merge>") > 0 Then
+        rowPos = .Row
+        colPos = .Column
+        v = rowPos + 1
+        Do While Cells(v, colPos) = contents
+          v = v + 1
+        Loop
+        h = colPos + 1
+        Do While Cells(rowPos, h) = contents
+          h = h + 1
+        Loop
+        If h > colPos + 1 Or v > rowPos Then
+            Range(Cells(rowPos, colPos), Cells(v - 1, h - 1)).Merge
+            .Replace "<merge>", ""
+        End If
+      End If
+      
+     If InStr(1, contents, "<rtext>") > 0 Then
+       .Orientation = 90
+     End If
+     
+     If InStr(1, contents, "<rtext45>") > 0 Then
+       .Orientation = 45
+     End If
+     
+     If InStr(1, contents, "<vtext>") > 0 Then
+       .Orientation = xlVertical
+     End If
+      
+      If InStr(1, contents, "<gold>") > 0 Then
+          .Replace "<gold>", ""
+          .Interior.Color = RGB(253, 181, 10)
+      End If
+ 
+      If InStr(1, contents, "<bold>") > 0 Then
+        .Font.Bold = True
+        .Replace "<bold>", ""
+      End If
+    
+      If InStr(1, contents, "<width") > 0 Then
+         pos = InStr(contents, "=")
+         w = Mid(contents, pos + 1, 3)
+         Columns(.Column).ColumnWidth = w
+         .Replace "<width=" + w + ">", ""
+      End If
+    
+      If InStr(1, contents, "<height") > 0 Then
+         pos = InStr(contents, "=")
+         pos2 = InStr(contents, ">")
+         l = pos2 - pos - 1
+         w = Mid(contents, pos + 1, l)
+         Rows(.Row).RowHeight = w
+         .Replace "<height=" + w + ">", ""
+      End If
+  
+      If InStr(1, contents, "<topgreen>") > 0 Then
+        .Replace "<topgreen>", ""
+        .Interior.Color = RGB(236, 240, 224)
+      End If
+      
+      If InStr(1, contents, "<grey>") > 0 Then
+        .Replace "<grey>", ""
+        .Interior.Color = RGB(220, 220, 220)
+     End If
+      
+      If InStr(1, contents, "<fontgreen>") > 0 Then
+          .Replace "<fontgreen>", ""
+          .Font.Color = RGB(64, 115, 77)
+      End If
+          
+      If InStr(1, contents, "<fontblue>") > 0 Then
+         .Replace "<fontblue>", ""
+        .Font.Color = RGB(61, 92, 196)
+      End If
+      
+      If InStr(1, contents, "<fontpurple>") > 0 Then
+         .Replace "<fontpurple>", ""
+        .Font.Color = RGB(128, 0, 128)
+      End If
+          
+      If InStr(1, contents, "<fontred>") > 0 Then
+        .Replace "<fontred>", ""
+        .Font.Color = vbRed
+      End If
+      
+      If InStr(1, contents, "<fontgrey>") > 0 Then
+        .Replace "<fontgrey>", ""
+        .Font.Color = RGB(105, 105, 105)
+      End If
+
+     If InStr(1, contents, "<currency>") > 0 Then
+       .NumberFormat = "$#,###.00"
+     End If
+       
+     If InStr(1, contents, "<percent>") > 0 Then
+       .NumberFormat = "0.00%"
+     End If
+       
+    End With
+  
+  
+  Next Cell
+
+  With ActiveSheet
+      .UsedRange.Cells.Replace "<vmerge>", ""
+      .UsedRange.Cells.Replace "<hmerge>", ""
+      .UsedRange.Cells.Replace "<merge>", ""
+      .UsedRange.Cells.Replace "<vtext>", ""
+      .UsedRange.Cells.Replace "<rtext>", ""
+      .UsedRange.Cells.Replace "<rtext45>", ""
+      .UsedRange.Cells.Replace "<currency>", ""
+      .UsedRange.Cells.Replace "<percent>", ""
+      .UsedRange.Cells.Replace "<strikethrough>", ""
+      .UsedRange.Cells.Replace "<hide>", ""
+      .UsedRange.Cells.Replace "<freeze>", ""
+      .UsedRange.Cells.Replace "<freezepoint>", ""
+      .UsedRange.Cells.Replace "^", Chr(13)
+      .UsedRange.Cells.Replace "|", Chr(13)
+      .UsedRange.Cells.Borders.LineStyle = xlContinuous
+      .UsedRange.Cells.Font.Size = 14
+      .UsedRange.Cells.Borders.Weight = xlThin
+      .UsedRange.Cells.HorizontalAlignment = xlCenter
+      .UsedRange.Cells.VerticalAlignment = xlCenter
+      .UsedRange.Cells.WrapText = True
+  End With
+
+  Columns("A:B").EntireColumn.Delete
+
+  ActiveSheet.Cells(1, 1).Select
+Next CurrentSheet
+
+Application.ScreenUpdating = True
+Sheets(1).Select
+ActiveSheet.Cells(1, 1).Select
+Application.StatusBar = "Processing completed."
+DoEvents
+
+
+End Sub

@@ -1,0 +1,480 @@
+Sub ReplaceTags()
+
+Debug.Print "Version 0.6"       ' 2017-05-31
+' 0.5 - cr/lf stuff 2017-05
+' 0.4 - active work book only; give error on image issue"   ' 2017-03-07
+' 0.3 - multiple strike throughs
+' 0.2 - corrected overflow issue
+
+Dim rowPos As Long
+Dim colPos As Long
+Dim contents As String
+Dim rowsUsed As Long
+Dim totalCells As Long
+
+Dim imageHeight As Integer
+Dim freezeRow As Long
+Dim freezeCol As Long
+
+Dim stBegins As Collection
+Dim stLengths As Collection
+
+Application.DisplayAlerts = False
+ViewMode = ActiveWindow.View
+ActiveWindow.View = xlNormalView
+' Application.DisplayStatusBar = False
+ActiveSheet.DisplayPageBreaks = False
+Application.EnableEvents = False
+
+
+Dim orig As Range
+Dim dest As Range
+Dim sheetCnt As Integer
+Dim aspect, w, h
+Dim myCount As Long
+Dim rowsDeleted As Long
+
+Dim saveError As Integer
+Dim errorCount As Integer
+
+rowsUsed = ActiveSheet.UsedRange.Rows.Count
+totalCells = ActiveWorkbook.ActiveSheet.UsedRange.Cells.Count
+Application.StatusBar = rowsUsed & " row to process; setting up any additional sheets"
+Application.ScreenUpdating = False
+
+' GoTo TagRemoval
+
+' phase 1: just check for a 2nd sheet
+sheetCnt = 1
+
+For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Columns(1).Cells
+
+   If InStr(1, Cell, "<sheet2>") > 0 Then
+    If Sheets.Count = 1 Then
+
+      ' create & name our new sheet
+      Sheets.Add After:=Sheets(Sheets.Count)
+      sheetCnt = sheetCnt + 1
+      If Cell <> "<sheet2>" Then
+        Sheets(Sheets.Count).Name = Replace(Cell.Value, "<sheet2>", "")
+      End If
+ 
+     ' copy the headers - assumption is we have at least 1
+      rowPos = 1
+      Do
+        If Sheets(1).Cells(rowPos, 1) = "<header>" Or Sheets(1).Cells(rowPos, 1) = "<special>" Then
+          Sheets(1).Rows(rowPos).EntireRow.Copy Destination:=Sheets(2).Cells(Rows.Count, 1).End(xlUp).Offset(1, 0)
+        End If
+        rowPos = rowPos + 1
+      Loop While rowPos < rowsUsed
+    End If   ' of if Sheets.Count = 1
+
+    ' and copy the data to sheet 2 (delete later)
+    Sheets(1).Rows(Cell.Row).Copy Destination:=Sheets(2).Cells(Rows.Count, 1).End(xlUp).Offset(1, 0)
+  
+  End If
+
+Next Cell
+
+ActiveWorkbook.Sheets(1).Select
+
+Dim firstRow As Long
+Dim lastRow As Long
+Dim lastCol As Long
+
+firstRow = Sheets(1).UsedRange.Cells(1).Row
+lastRow = Sheets(1).Rows(Sheets(1).UsedRange.Rows.Count).Row
+lastCol = Sheets(1).Columns(Sheets(1).UsedRange.Columns.Count).Column
+For lrow = lastRow To firstRow Step -1
+  With Sheets(1).Cells(lrow, 1)
+    If Not IsError(.Value) Then
+      If InStr(1, .Value, "<sheet2>") > 0 Then .EntireRow.Delete
+    End If
+  End With
+Next lrow
+
+Debug.Print "ready!"
+
+Application.ScreenUpdating = True
+Application.StatusBar = "processing cells for formatting..."
+DoEvents
+Application.ScreenUpdating = False
+
+
+' our formatting
+
+Dim isHeader As Boolean
+sheetCnt = Worksheets.Count
+For sheetsToProcess = 1 To sheetCnt
+
+  ActiveWorkbook.Sheets(sheetsToProcess).Select
+
+  For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
+   myCount = myCount + 1
+   If myCount Mod 250 = 0 Then
+     Application.ScreenUpdating = True
+     Percent = myCount / totalCells * 100
+     Application.StatusBar = "processing cells for formatting..." & myCount & " cells processed [" & Percent & "%]"
+     DoEvents
+     Application.ScreenUpdating = False
+   End If
+
+   Cell.Select
+   With ActiveCell
+    contents = .Value2
+
+    If .Column = 1 Then
+      If InStr(1, contents, "<dividerrow>") > 0 Then
+        Range(Cells(.Row, 2), Cells(.Row, lastCol)).Merge
+        GoTo NextIteration
+      End If
+    End If
+
+  ' vertical merge check
+    If InStr(1, contents, "<vmerge>") > 0 Then
+      rowPos = .Row
+      colPos = .Column
+      i = rowPos + 1
+      Do While Cells(i, colPos) = contents
+        i = i + 1
+      Loop
+      If i > rowPos + 1 Then
+        Range(Cells(rowPos, colPos), Cells(i - 1, colPos)).Merge
+      End If
+      .Replace "<vmerge>", ""
+    End If
+
+  ' horizontal merge check
+    If InStr(1, contents, "<hmerge>") > 0 Then
+      rowPos = .Row
+      colPos = .Column
+      .VerticalAlignment = xlCenter
+      i = colPos + 1
+      Do While Cells(rowPos, i) = contents
+        i = i + 1
+      Loop
+      If i > colPos + 1 Then
+        Range(Cells(rowPos, colPos), Cells(rowPos, i - 1)).Merge
+      End If
+    End If
+
+    If InStr(1, contents, "<gold>") > 0 Then
+      .Replace "<gold>", ""
+      .Interior.Color = RGB(253, 181, 10)
+    End If
+
+    If InStr(1, contents, "<grey>") > 0 Then
+      .Replace "<grey>", ""
+      .Interior.Color = RGB(148, 148, 148)
+    End If
+
+    If InStr(1, contents, "<teal>") > 0 Then
+      .Replace "<teal>", ""
+      .Interior.Color = RGB(194, 255, 255)
+    End If
+
+    If InStr(1, contents, "<darkpeach>") > 0 Then
+      .Replace "<darkpeach>", ""
+      .Interior.Color = RGB(250, 204, 165)
+    End If
+
+    If InStr(1, contents, "<lightpeach>") > 0 Then
+      .Replace "<lightpeach>", ""
+      .Interior.Color = RGB(252, 228, 208)
+    End If
+
+    If InStr(1, contents, "<purple>") > 0 Then
+      .Replace "<purple>", ""
+      .Interior.Color = RGB(192, 177, 209)
+    End If
+
+    If InStr(1, contents, "<rowgreen>") > 0 Then
+      .Replace "<rowgreen>", ""
+      .Interior.Color = RGB(154, 255, 196)
+    End If
+
+    If InStr(1, contents, "<olivebulk>") > 0 Then
+      .Replace "<olivebulk>", ""
+      .Interior.Color = RGB(183, 176, 133)
+    End If
+
+    If InStr(1, contents, "<ppgreen>") > 0 Then
+      .Replace "<ppgreen>", ""
+      .Interior.Color = RGB(207, 223, 174)
+    End If
+
+    If InStr(1, contents, "<yygreen>") > 0 Then
+      .Replace "<yygreen>", ""
+      .Interior.Color = RGB(119, 205, 118)
+    End If
+
+    If InStr(1, contents, "<prrgreen>") > 0 Then
+      .Replace "<prrgreen>", ""
+      .Interior.Color = RGB(184, 208, 138)
+    End If
+
+    If InStr(1, contents, "<topgreen>") > 0 Then
+      .Replace "<topgreen>", ""
+      .Interior.Color = RGB(139, 177, 74)
+    End If
+
+    If InStr(1, contents, "<lightpurple>") > 0 Then
+      .Replace "<lightpurple>", ""
+      .Interior.Color = RGB(212, 204, 224)
+    End If
+
+    If InStr(1, contents, "<lighterpurple>") > 0 Then
+      .Replace "<lighterpurple>", ""
+      .Interior.Color = RGB(221, 215, 231)
+    End If
+
+    If InStr(1, contents, "<red>") > 0 Then
+      .Replace "<red>", ""
+      .Interior.Color = RGB(252, 55, 64)
+    End If
+
+    If InStr(1, contents, "<width") > 0 Then
+       pos = InStr(contents, "=")
+       pos2 = InStr(contents, ">")
+       l = pos2 - pos - 1
+       w = Mid(contents, pos + 1, l)
+       'Debug.Print "Setting the width"
+       'Debug.Print w
+       Columns(.Column).ColumnWidth = w
+    End If
+
+    If InStr(1, contents, "<height") > 0 Then
+       pos = InStr(contents, "=")
+       pos2 = InStr(contents, ">")
+       l = pos2 - pos - 1
+       w = Mid(contents, pos + 1, l)
+       Debug.Print w
+       Rows(.Row).RowHeight = w
+    End If
+  
+    If InStr(1, contents, "<fontred>") > 0 Then
+     .Replace "<fontred>", ""
+      .Font.Color = vbRed
+    End If
+
+    If InStr(1, contents, "<deadlinegreen>") > 0 Then
+      .Replace "<deadlinegreen>", ""
+      .Interior.Color = RGB(194, 255, 193)
+    End If
+
+    If InStr(1, contents, "<strikethrough>") > 0 Then
+     .Font.StrikeThrough = True
+    End If
+
+     If InStr(1, contents, "<freezerow>") > 0 Then
+      With ActiveWindow
+        .FreezePanes = False
+        .SplitColumn = 0
+        .SplitRow = Cell.Row
+        .FreezePanes = True
+      End With
+    End If
+     
+    If InStr(1, contents, "<freezecol>") > 0 Then
+      With ActiveWindow
+        .FreezePanes = False
+        .SplitColumn = Cell.Column
+        .SplitRow = 0
+        .FreezePanes = True
+      End With
+    End If
+
+    If InStr(1, contents, "<freezepoint>") > 0 Then
+'      freezeRow = .Row
+'      freezeCol = .Column
+    End If
+
+  ' check for partial text strikethrough
+    Set stBegins = New Collection
+    Set stLengths = New Collection
+    Do
+      beginST = InStr(ActiveCell.Value2, "<stbegin>")
+      endSt = InStr(ActiveCell.Value2, "<stend>")
+      If endSt > beginST Then
+        Lngth = endSt - beginST - 9
+        ' Debug.Print "Begin / End: " & beginST & " / " & endSt & " Lgth: " & Lngth & " [" & .Row & " " & .Column & "]"
+        ActiveCell = Replace(ActiveCell.Value2, "<stbegin>", "", 1, 1)
+        ActiveCell = Replace(ActiveCell.Value2, "<stend>", "", 1, 1)
+        stBegins.Add beginST
+        stLengths.Add Lngth
+      Else
+        Exit Do
+      End If
+    Loop
+    If stBegins.Count > 0 Then
+      ActiveCell.Font.StrikeThrough = False
+      For i = 1 To stBegins.Count
+        ' Debug.Print "S/T: begin/length: " & stBegins(i) & " / " & stLengths(i)
+        ActiveCell.Characters(stBegins(i), stLengths(i)).Font.StrikeThrough = True
+      Next i
+    End If
+ 
+    If InStr(1, contents, "<hide>") > 0 Then
+      Columns(.Column).EntireColumn.Hidden = True
+    End If
+    
+   End With
+NextIteration:
+  Next Cell
+Next sheetsToProcess
+
+'fix the screen to get the correct size
+Application.ScreenUpdating = True
+Application.StatusBar = "Clearing tags"
+DoEvents
+Application.ScreenUpdating = False
+
+
+' remove tags
+For i = 1 To sheetCnt
+  ActiveWorkbook.Sheets(i).Select
+  With ActiveSheet
+    .UsedRange.Cells.Replace "<vmerge>", ""
+    .UsedRange.Cells.Replace "<hmerge>", ""
+    .UsedRange.Cells.Replace "<strikethrough>", ""
+    .UsedRange.Cells.Replace "<hide>", ""
+    .UsedRange.Cells.Replace "<freeze>", ""
+    .UsedRange.Cells.Replace "<freezepoint>", ""
+    .UsedRange.Cells.Replace "^", Chr(13)
+    .UsedRange.Cells.Replace "|", Chr(13)
+    .UsedRange.Cells.Borders.LineStyle = xlContinuous
+    .UsedRange.Cells.Borders.Weight = xlThin
+    .UsedRange.Cells.HorizontalAlignment = xlCenter
+    .UsedRange.Cells.VerticalAlignment = xlCenter
+    .UsedRange.Cells.Font.Bold = True
+    '.UsedRange.Cells.WrapText = True
+  End With
+
+'  orig = ActiveSheet.UsedRange.Cells
+'  orig.Replace "<vmerge>", ""
+
+  firstRow = Sheets(1).UsedRange.Cells(1).Row
+  lastRow = Sheets(1).Rows(Sheets(1).UsedRange.Rows.Count).Row
+  lastCol = Sheets(1).Columns(Sheets(1).UsedRange.Columns.Count).Column
+  rowsDeleted = 0
+  For lrow = lastRow To firstRow Step -1
+    'Rows(lrow).Cells.Replace "<vmerge>", ""
+    With Cells(lrow, 1)
+      If Not IsError(.Value) Then
+        If InStr(1, .Value, "<special>") > 0 Or InStr(1, .Value, "<dividerrow>") > 0 Then
+          .EntireRow.Delete
+          rowsDeleted = rowsDeleted + 1
+        End If
+      End If
+    End With
+  Next lrow
+
+  If i > 1 Then
+    Rows(1).Delete
+  End If
+  Columns(1).Delete
+Next i
+
+' insert our images
+SkipFormatting:
+
+Application.ScreenUpdating = True
+Application.StatusBar = "Calculating image height to use"
+DoEvents
+' Application.ScreenUpdating = False
+
+imageHeight = 0
+For i = 1 To sheetCnt
+  ActiveWorkbook.Sheets(i).Select
+  For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Columns(5).Cells
+    If Not IsEmpty(Cell.Value2) And Cell.Row > 3 Then
+      Cell.Select
+      h = Cell.Height
+      If Cell.MergeCells Then
+        For j = 2 To ActiveCell.MergeArea.Count
+          h = h + Cells(Cell.Row + j - 1, Cell.Column).Height
+        Next j
+      End If
+      If h > imageHeight Then
+        imageHeight = h
+        ' Debug.Print "Height set to " & h
+      End If
+    End If
+  Next Cell
+Next i
+
+If imageHeight < 100 Then imageHeight = 100
+If imageHeight > 200 Then imageHeight = 200
+
+Application.ScreenUpdating = True
+Application.StatusBar = "Setting images - height = " & imageHeight
+DoEvents
+Application.ScreenUpdating = False
+
+sPath = MacScript("(path to desktop folder as string)")
+sPath = Replace(sPath, ":", "/")
+pos = InStr(sPath, "/")
+sPath = Mid(sPath, pos, Len(sPath))
+Dim P As Shape
+
+For i = 1 To sheetCnt
+  ActiveWorkbook.Sheets(i).Select
+  For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Columns(5).Cells
+    On Error GoTo badFile:
+    If Not IsEmpty(Cell.Value2) And Cell.Row > 3 Then
+      Debug.Print "->" & Cell.Text & "<-"
+      myPath = sPath + "EIA Images/" + Cell.Text + ".png"
+      Cell.Select
+      Cell.Font.Color = vbWhite
+      w = Cell.Width
+      h = Cell.Height
+      If Cell.MergeCells Then
+        For j = 2 To ActiveCell.MergeArea.Count
+          h = h + Cells(Cell.Row + j - 1, Cell.Column).Height
+        Next j
+      End If
+      If h < imageHeight Then
+        newHeight = Rows(Cell.Row).Height + imageHeight - h
+        Debug.Print "h: " & h & "; imageHeight: " & imageHeight & "; row height: " & Rows(Cell.Row).RowHeight & "; newHeight: " & newHeight
+        On Error Resume Next
+        Rows(Cell.Row).RowHeight = Rows(Cell.Row).Height + imageHeight - h
+        ' Debug.Print "Setting row " & cell.Row & " height to " & Rows(cell.Row).RowHeight
+        h = imageHeight
+      End If
+      Set P = ActiveSheet.Shapes.AddPicture(myPath, msoFalse, msoTrue, Cell.Left + 2, Cell.Top + 2, -1, -1)
+      aspect = P.Width / P.Height
+      If (w / h < aspect) Then
+        P.Width = w - 2         ' scale picture to available width
+      Else
+        P.Height = h - 2          ' scale picture to available height
+      End If
+    End If   ' non-empty row
+    GoTo nextCell
+badFile:
+    If Err.Number <> saveError Then
+       MsgBox "Image error: " & Err.Number
+       saveError = Err.Number
+       errorCount = errorCount + 1
+    End If
+    Resume nextCell
+
+nextCell:
+  Next Cell
+Next i
+
+
+For i = 1 To sheetCnt
+  ActiveWorkbook.Sheets(i).Select
+  ActiveSheet.UsedRange.Cells.WrapText = True
+Next i
+
+ActiveWindow.View = ViewMode
+Application.StatusBar = ""
+
+Sheets(1).Select
+
+End Sub
+
+
+
+
