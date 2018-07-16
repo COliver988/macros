@@ -137,9 +137,9 @@ For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
       
       If InStr(1, contents, "<gold>") > 0 Then
           .Replace "<gold>", ""
-          .Interior.Color = RGB(253, 181, 10)
+          .Interior.Color = RGB(255, 140, 0)
       End If
- 
+      
       If InStr(1, contents, "<bold>") > 0 Then
         .Font.Bold = True
         .Replace "<bold>", ""
@@ -195,7 +195,12 @@ For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
         .Replace "<fontgrey>", ""
         .Font.Color = RGB(105, 105, 105)
       End If
-
+      
+      If InStr(1, contents, "<fontorange>") > 0 Then
+          .Replace "<fontorange>", ""
+          .Font.Color = RGB(255, 140, 0)
+      End If
+ 
      If InStr(1, contents, "<currency>") > 0 Then
        .NumberFormat = "$#,###.00"
      End If
