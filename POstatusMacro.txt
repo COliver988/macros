@@ -160,7 +160,19 @@ For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
          Rows(.Row).RowHeight = w
          .Replace "<height=" + w + ">", ""
       End If
-  
+     
+      If InStr(1, contents, "<justifyright>") > 0 Then
+        .HorizontalAlignment = xlRight
+        .Replace "<justifyright>", ""
+     
+      ElseIf InStr(1, contents, "<justifyleft>") > 0 Then
+        .HorizontalAlignment = xlLeft
+        .Replace "<justifyleft>", ""
+        
+      Else
+        .HorizontalAlignment = xlCenter
+      End If
+      
       If InStr(1, contents, "<topgreen>") > 0 Then
         .Replace "<topgreen>", ""
         .Interior.Color = RGB(236, 240, 224)
@@ -232,7 +244,6 @@ For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
       .UsedRange.Cells.Borders.LineStyle = xlContinuous
       .UsedRange.Cells.Font.Size = 14
       .UsedRange.Cells.Borders.Weight = xlThin
-      .UsedRange.Cells.HorizontalAlignment = xlCenter
       .UsedRange.Cells.VerticalAlignment = xlCenter
       .UsedRange.Cells.WrapText = True
   End With
