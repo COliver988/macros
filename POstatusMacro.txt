@@ -11,6 +11,11 @@ totalCells = ActiveWorkbook.ActiveSheet.UsedRange.Cells.Count
 rowsUsed = ActiveSheet.UsedRange.Rows.Count
 Application.StatusBar = rowsUsed & " row to process; creating the sheets"
 
+With ActiveSheet
+    .UsedRange.Cells.Borders.LineStyle = xlContinuous
+    .UsedRange.Cells.Borders.Weight = xlThin
+End With
+
 For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Columns(1).Cells
 
     If InStr(1, Cell, "<sheet") > 0 Then
@@ -31,6 +36,7 @@ For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Columns(1).Cells
 Next Cell
 
 ActiveWorkbook.Sheets(1).Select
+
 Application.StatusBar = "Cleaning up sheet 1 - remove other sheet data"
 myCount = 0
 For RowToTest = Cells(Rows.Count, 1).End(xlUp).Row To 2 Step -1
@@ -45,6 +51,7 @@ For RowToTest = Cells(Rows.Count, 1).End(xlUp).Row To 2 Step -1
 
    With Cells(RowToTest, 1)
    
+  
    If .Value <> "<sheet1>" Then
       Rows(RowToTest).EntireRow.Delete
     End If
@@ -63,7 +70,7 @@ For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
   With ActiveCell
    
      contents = .Value2
-     
+           
      If contents = "<sheetname>" Then
         ActiveWorkbook.Sheets(CurrentSheet).Name = Cells(.Row, 3).Value
     End If
@@ -132,6 +139,7 @@ For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
      End If
      
      If InStr(1, contents, "<vtext>") > 0 Then
+        .NumberFormat = "@"
        .Orientation = xlVertical
      End If
       
@@ -221,6 +229,27 @@ For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
        .NumberFormat = "0.00%"
      End If
        
+    If InStr(1, contents, "<linedoublebottom>") > 0 Then
+      .Borders(xlEdgeBottom).Weight = xlThick
+      .Borders(xlEdgeBottom).LineStyle = xlDouble
+      .Replace "<linedoublebottom>", ""
+    End If
+    
+    If InStr(1, contents, "<lineboldbottom>") > 0 Then
+      .Borders(xlEdgeBottom).Weight = xlThick
+      .Replace "<lineboldbottom>", ""
+    End If
+        
+    If InStr(1, contents, "<lineboldright>") > 0 Then
+      .Borders(xlEdgeRight).Weight = xlThick
+      .Replace "<lineboldright>", ""
+    End If
+    
+    If InStr(1, contents, "<lineright>") > 0 Then
+      .Borders(xlEdgeRight).Weight = xlMedium
+      .Replace "<lineright>", ""
+    End If
+    
     End With
   
   
@@ -241,11 +270,9 @@ For Each Cell In ActiveWorkbook.ActiveSheet.UsedRange.Cells
       .UsedRange.Cells.Replace "<freezepoint>", ""
       .UsedRange.Cells.Replace "^", Chr(13)
       .UsedRange.Cells.Replace "|", Chr(13)
-      .UsedRange.Cells.Borders.LineStyle = xlContinuous
-      .UsedRange.Cells.Font.Size = 14
-      .UsedRange.Cells.Borders.Weight = xlThin
-      .UsedRange.Cells.VerticalAlignment = xlCenter
       .UsedRange.Cells.WrapText = True
+      .UsedRange.Cells.VerticalAlignment = xlCenter
+      .UsedRange.Cells.Font.Size = 14
   End With
 
   Columns("A:B").EntireColumn.Delete
